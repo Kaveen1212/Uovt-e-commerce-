@@ -1,71 +1,78 @@
 import { Heart, ChevronDown, ChevronUp, Star } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-
-// Sample product data
-export const products = [
-  {
-    id: 1,
-    name: 'Vital Shorts',
-    description: 'Rich Maroon/Marl',
-    price: 42,
-    rating: 4.3,
-    image: '/product1.avif',
-    isNew: true,
-  },
-  {
-    id: 2,
-    name: 'Vital V Neck Sports Bra',
-    description: 'Light Support',
-    subdescription: 'Rich Maroon/Marl',
-    price: 38,
-    rating: 4.4,
-    image: '/product2.avif',
-    isNew: true,
-  },
-  {
-    id: 3,
-    name: 'Vital Leggings',
-    description: 'Regular',
-    subdescription: 'Rich Maroon/Marl',
-    price: 55,
-    rating: 4.2,
-    image: '/product3.avif',
-    isNew: true,
-  },
-  {
-    id: 4,
-    name: 'Vital Tight TShirt',
-    description: 'Black',
-    price: 38,
-    rating: 4.5,
-    image: '/product4.avif',
-    isNew: true,
-  },
-  {
-    id: 5,
-    name: 'Vital Shorts',
-    description: 'Rich Maroon/Marl',
-    price: 42,
-    rating: 4.3,
-    image: '/product1.avif',
-    isNew: false,
-  },
-  {
-    id: 6,
-    name: 'Vital Tight TShirt',
-    description: 'Rich Maroon/Marl',
-    price: 38,
-    rating: 4.5,
-    image: '/product4.avif',
-    isNew: true,
-  },
-];
+import { productService } from '../services';
 
 function ProductList() {
+  const [products, setProducts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [openFilters, setOpenFilters] = useState<string[]>(['sort']);
   const [sortBy, setSortBy] = useState('relevancy');
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const navigate = useNavigate();
+
+  // Fetch products on component mount
+  useEffect(() => {
+    fetchProducts();
+  }, []);
+
+  // Fetch products from API
+  const fetchProducts = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      const data = await productService.getAllProducts();
+      setProducts(data);
+    } catch (err: any) {
+      setError(err.message || 'Failed to load products');
+      console.error('Error fetching products:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Search products
+  const handleSearch = async (query: string) => {
+    setSearchQuery(query);
+    if (!query.trim()) {
+      fetchProducts();
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const data = await productService.searchProducts(query);
+      setProducts(data);
+    } catch (err: any) {
+      setError('Search failed');
+      console.error('Search error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Filter by category
+  const filterByCategory = async (category: string) => {
+    setSelectedCategory(category);
+
+    if (!category) {
+      fetchProducts();
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const data = await productService.getProductsByCategory(category);
+      setProducts(data);
+    } catch (err: any) {
+      setError('Filter failed');
+      console.error('Filter error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const toggleFilter = (filterName: string) => {
     setOpenFilters(prev =>
@@ -74,6 +81,35 @@ function ProductList() {
         : [...prev, filterName]
     );
   };
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-black mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading products...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-red-600 text-lg mb-4">{error}</p>
+          <button
+            onClick={fetchProducts}
+            className="bg-black text-white px-6 py-2 rounded-full hover:bg-gray-800"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <section className="py-12 bg-white">
@@ -84,8 +120,19 @@ function ProductList() {
             NEW PRODUCT DROPS
           </h2>
           <p className="text-gray-600 text-base md:text-lg max-w-3xl">
-            Vital's always been the gym girl go-to, and now there's even more ways to wear it.
+            Discover our latest collection of premium workout gear
           </p>
+
+          {/* Search Bar */}
+          <div className="mt-4">
+            <input
+              type="text"
+              placeholder="Search products..."
+              value={searchQuery}
+              onChange={(e) => handleSearch(e.target.value)}
+              className="max-w-md w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
+            />
+          </div>
         </div>
 
         {/* Main Content with Sidebar */}
@@ -152,15 +199,34 @@ function ProductList() {
                 )}
               </div>
 
-              {/* Product Type */}
+              {/* Category */}
               <div className="border-b border-gray-200 pb-4">
                 <button
-                  onClick={() => toggleFilter('productType')}
-                  className="w-full flex items-center justify-between text-sm font-bold uppercase tracking-wide"
+                  onClick={() => toggleFilter('category')}
+                  className="w-full flex items-center justify-between text-sm font-bold uppercase tracking-wide mb-4"
                 >
-                  PRODUCT TYPE
-                  {openFilters.includes('productType') ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                  CATEGORY
+                  {openFilters.includes('category') ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                 </button>
+                {openFilters.includes('category') && (
+                  <div className="space-y-2">
+                    <button
+                      onClick={() => filterByCategory('')}
+                      className={`block text-sm text-left w-full ${!selectedCategory ? 'font-bold' : ''}`}
+                    >
+                      All Products
+                    </button>
+                    {['Shorts', 'Leggings', 'T-Shirts', 'Sports Bras', 'Hoodies'].map((cat) => (
+                      <button
+                        key={cat}
+                        onClick={() => filterByCategory(cat)}
+                        className={`block text-sm text-left w-full ${selectedCategory === cat ? 'font-bold' : ''}`}
+                      >
+                        {cat}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Size */}
@@ -244,56 +310,96 @@ function ProductList() {
 
           {/* Products Grid */}
           <div className="flex-1">
-            <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-              {products.map((product) => (
-                <div key={product.id} className="group cursor-pointer">
-                  {/* Product Image */}
-                  <div
-                    className="relative overflow-hidden mb-3 aspect-[3/4] bg-gray-100"
-                    onClick={() => navigate(`/products/${product.id}`)}
-                  >
-                    <img
-                      src={product.image}
-                      alt={product.name}
-                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                    />
+            {products.length === 0 ? (
+              <div className="text-center py-16">
+                <p className="text-gray-600 text-lg mb-4">No products found</p>
+                <button
+                  onClick={fetchProducts}
+                  className="bg-black text-white px-6 py-2 rounded-full hover:bg-gray-800"
+                >
+                  View All Products
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+                  {products.map((product) => (
+                    <div key={product.id} className="group cursor-pointer">
+                      {/* Product Image */}
+                      <div
+                        className="relative overflow-hidden mb-3 aspect-[3/4] bg-gray-100"
+                        onClick={() => navigate(`/products/${product.id}`)}
+                      >
+                        <img
+                          src={product.image || '/placeholder-product.jpg'}
+                          alt={product.name}
+                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                        />
 
-                    {/* NEW Badge */}
-                    {product.isNew && (
-                      <span className="absolute top-3 left-3 bg-white text-black text-xs font-bold px-2 py-1">
-                        NEW
-                      </span>
-                    )}
+                        {/* NEW Badge - show for recently created products */}
+                        {product.createdAt && new Date(product.createdAt) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) && (
+                          <span className="absolute top-3 left-3 bg-white text-black text-xs font-bold px-2 py-1">
+                            NEW
+                          </span>
+                        )}
 
-                    {/* Wishlist Button */}
-                    <button className="absolute top-3 right-3 w-8 h-8 bg-white rounded-full flex items-center justify-center hover:bg-gray-100 transition-colors">
-                      <Heart className="w-4 h-4 text-gray-900" />
-                    </button>
-                  </div>
+                        {/* Wishlist Button */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            // TODO: Add to wishlist functionality
+                          }}
+                          className="absolute top-3 right-3 w-8 h-8 bg-white rounded-full flex items-center justify-center hover:bg-gray-100 transition-colors"
+                        >
+                          <Heart className="w-4 h-4 text-gray-900" />
+                        </button>
+                      </div>
 
-                  {/* Product Info */}
-                  <div className="space-y-1">
-                    {/* Rating */}
-                    <div className="flex items-center gap-1">
-                      <Star className="w-3 h-3 fill-black text-black" />
-                      <span className="text-xs font-semibold">{product.rating}</span>
+                      {/* Product Info */}
+                      <div className="space-y-1">
+                        {/* Rating */}
+                        {product.rating > 0 && (
+                          <div className="flex items-center gap-1">
+                            <Star className="w-3 h-3 fill-black text-black" />
+                            <span className="text-xs font-semibold">{product.rating.toFixed(1)}</span>
+                            {product.reviewCount > 0 && (
+                              <span className="text-xs text-gray-500">({product.reviewCount})</span>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Product Name */}
+                        <h3 className="font-bold text-sm">{product.name}</h3>
+
+                        {/* Description */}
+                        <p className="text-xs text-gray-600">{product.description}</p>
+
+                        {/* Category & Brand */}
+                        {product.category && (
+                          <p className="text-xs text-gray-500">{product.category}</p>
+                        )}
+
+                        {/* Price */}
+                        <p className="font-bold text-sm">US${product.price}</p>
+
+                        {/* Stock Status */}
+                        {product.stock === 0 && (
+                          <p className="text-red-600 text-xs">Out of Stock</p>
+                        )}
+                        {product.stock > 0 && product.stock < 10 && (
+                          <p className="text-orange-600 text-xs">Only {product.stock} left!</p>
+                        )}
+                      </div>
                     </div>
-
-                    {/* Product Name */}
-                    <h3 className="font-bold text-sm">{product.name}</h3>
-
-                    {/* Description */}
-                    <p className="text-xs text-gray-600">{product.description}</p>
-                    {product.subdescription && (
-                      <p className="text-xs text-gray-600">{product.subdescription}</p>
-                    )}
-
-                    {/* Price */}
-                    <p className="font-bold text-sm">US${product.price}</p>
-                  </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+
+                {/* Results Count */}
+                <div className="mt-8 text-center text-gray-600">
+                  Showing {products.length} {products.length === 1 ? 'product' : 'products'}
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>

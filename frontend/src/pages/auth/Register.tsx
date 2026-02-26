@@ -1,24 +1,56 @@
 import { Eye, EyeOff } from 'lucide-react';
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { authService } from '../../services';
+import { useAuth } from '../../context/AuthContext';
 
 function Register() {
   const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+  const { setUser } = useAuth();
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
     email: '',
     password: '',
-    dateOfBirth: '',
-    gender: '',
     agreeToTerms: false,
     agreeToMarketing: false,
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Handle registration logic here
-    console.log('Register:', formData);
+    setError('');
+
+    if (!formData.agreeToTerms) {
+      setError('You must agree to the Terms and Conditions');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const response = await authService.register({
+        email: formData.email,
+        password: formData.password,
+        name: `${formData.firstName} ${formData.lastName}`,
+      });
+
+      console.log('Registration successful:', response.user);
+
+      // Store user info in localStorage and context
+      localStorage.setItem('user', JSON.stringify(response.user));
+      setUser(response.user);
+
+      // Redirect to account page after registration
+      navigate('/account');
+    } catch (err: any) {
+      setError(err.message || 'Registration failed. Please try again.');
+      console.error('Registration error:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -53,6 +85,13 @@ function Register() {
 
         {/* Registration Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Error Message */}
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md text-sm">
+              {error}
+            </div>
+          )}
+
           {/* First Name */}
           <div>
             <input
@@ -187,9 +226,10 @@ function Register() {
           {/* Register Button */}
           <button
             type="submit"
-            className="w-full bg-black text-white font-bold py-3 rounded-full hover:bg-gray-800 transition-colors uppercase tracking-wide text-sm mt-6"
+            disabled={loading}
+            className="w-full bg-black text-white font-bold py-3 rounded-full hover:bg-gray-800 transition-colors uppercase tracking-wide text-sm mt-6 disabled:bg-gray-400 disabled:cursor-not-allowed"
           >
-            CREATE ACCOUNT
+            {loading ? 'CREATING ACCOUNT...' : 'CREATE ACCOUNT'}
           </button>
 
           {/* Login Link */}

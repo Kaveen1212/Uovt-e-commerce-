@@ -3,10 +3,12 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import Cart from './Cart';
 import { useCart } from '../context/CartContext';
+import { useAuth } from '../context/AuthContext';
 
 function Navbar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { cartCount, isCartOpen, openCart, closeCart } = useCart();
+  const { isAuthenticated } = useAuth();
 
   return (
     <nav className="bg-white border-b border-gray-200">
@@ -55,7 +57,7 @@ function Navbar() {
             <Link to="/wishlist" className="hidden md:block text-gray-700 hover:text-gray-900 transition-colors">
               <Heart className="w-5 h-5" />
             </Link>
-            <Link to="/login" className="text-gray-700 hover:text-gray-900 transition-colors">
+            <Link to={isAuthenticated ? "/account" : "/login"} className="text-gray-700 hover:text-gray-900 transition-colors">
               <User className="w-5 h-5" />
             </Link>
             <button

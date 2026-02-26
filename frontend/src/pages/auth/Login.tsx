@@ -1,16 +1,39 @@
 import { Eye, EyeOff } from 'lucide-react';
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { authService } from '../../services';
+import { useAuth } from '../../context/AuthContext';
 
 function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+  const { setUser } = useAuth();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Handle login logic here
-    console.log('Login:', { email, password });
+    setError('');
+    setLoading(true);
+
+    try {
+      const response = await authService.login({ email, password });
+      console.log('Login successful:', response.user);
+
+      // Store user info in localStorage and context
+      localStorage.setItem('user', JSON.stringify(response.user));
+      setUser(response.user);
+
+      // Redirect to account page after successful login
+      navigate('/account');
+    } catch (err: any) {
+      setError(err.message || 'Login failed. Please check your credentials.');
+      console.error('Login error:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -36,6 +59,13 @@ function Login() {
 
         {/* Login Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Error Message */}
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md text-sm">
+              {error}
+            </div>
+          )}
+
           {/* Email Input */}
           <div>
             <input
@@ -84,9 +114,10 @@ function Login() {
           {/* Login Button */}
           <button
             type="submit"
-            className="w-full bg-black text-white font-bold py-3 rounded-full hover:bg-gray-800 transition-colors uppercase tracking-wide text-sm"
+            disabled={loading}
+            className="w-full bg-black text-white font-bold py-3 rounded-full hover:bg-gray-800 transition-colors uppercase tracking-wide text-sm disabled:bg-gray-400 disabled:cursor-not-allowed"
           >
-            LOG IN
+            {loading ? 'LOGGING IN...' : 'LOG IN'}
           </button>
 
           {/* Sign Up Link */}
